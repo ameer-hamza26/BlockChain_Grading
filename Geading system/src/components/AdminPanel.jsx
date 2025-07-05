@@ -1,9 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useContext } from 'react';
 import { getUsers, addUser, updatePassword, deleteUser } from '../services/web3.jsx';
 import { ClipboardDocumentIcon, TrashIcon, PencilIcon } from '@heroicons/react/24/outline';
 import ChairmanPanel from './ChairmanPanel.jsx';
 import InstructorPanel from './InstructorPanel.jsx';
 import { UserGroupIcon, AcademicCapIcon, ClipboardDocumentListIcon, DocumentTextIcon } from '@heroicons/react/24/outline';
+import { AuthContext } from '../context/AuthContext';
 
 function Notification({ message, type, onClose }) {
   if (!message) return null;
@@ -25,6 +26,7 @@ const mockGrades = [
 ];
 
 export default function AdminPanel() {
+  const { user } = useContext(AuthContext);
   const [users, setUsers] = useState([]);
   const [activePanel, setActivePanel] = useState('students'); // students | grading | chairman | instructor
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -39,6 +41,20 @@ export default function AdminPanel() {
   });
   const [loading, setLoading] = useState(false);
   const [notification, setNotification] = useState({ message: '', type: 'success' });
+
+  // Chairmen and Instructors state for admin
+  const [isAddChairmanOpen, setIsAddChairmanOpen] = useState(false);
+  const [chairmanForm, setChairmanForm] = useState({ name: '', employeeId: '', email: '', wallet: '', isActive: true });
+  const [chairmen, setChairmen] = useState([
+    { id: 1, name: 'Chairman 1', employeeId: 'EMP001', email: 'chairman1@example.com', isActive: true, wallet: '0xabc123...' },
+    { id: 2, name: 'Chairman 2', employeeId: 'EMP002', email: 'chairman2@example.com', isActive: false, wallet: '0xdef456...' },
+  ]);
+  const [isAddInstructorOpen, setIsAddInstructorOpen] = useState(false);
+  const [instructorForm, setInstructorForm] = useState({ name: '', employeeId: '', email: '', wallet: '', isActive: true });
+  const [instructors, setInstructors] = useState([
+    { id: 1, name: 'Jane Smith', employeeId: 'EMP101', email: 'instructor1@example.com', isActive: true, wallet: '0xaaa111...' },
+    { id: 2, name: 'Ali Khan', employeeId: 'EMP102', email: 'instructor2@example.com', isActive: true, wallet: '0xbbb222...' },
+  ]);
 
   useEffect(() => {
     loadUsers();
@@ -100,6 +116,28 @@ export default function AdminPanel() {
 
   // Only show students in the students panel
   const students = users.filter(u => u.role === 'student');
+
+  // Add chairman (admin only)
+  const handleAddChairman = (e) => {
+    e.preventDefault();
+    setChairmen([
+      ...chairmen,
+      { ...chairmanForm, id: chairmen.length + 1 },
+    ]);
+    setChairmanForm({ name: '', employeeId: '', email: '', wallet: '', isActive: true });
+    setIsAddChairmanOpen(false);
+  };
+
+  // Add instructor (admin only)
+  const handleAddInstructor = (e) => {
+    e.preventDefault();
+    setInstructors([
+      ...instructors,
+      { ...instructorForm, id: instructors.length + 1 },
+    ]);
+    setInstructorForm({ name: '', employeeId: '', email: '', wallet: '', isActive: true });
+    setIsAddInstructorOpen(false);
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-blue-200 flex">
@@ -211,13 +249,143 @@ export default function AdminPanel() {
           {activePanel === 'chairman' && (
             <div className="bg-white rounded-xl shadow-lg p-8 transition-all duration-200">
               <h2 className="text-3xl font-bold text-blue-700 tracking-tight mb-8">Chairman Panel</h2>
-              <ChairmanPanel />
+              {/* Admin can add chairman */}
+              {user?.role === 'admin' && (
+                <div className="mb-4 flex justify-end">
+                  <button className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700" onClick={() => setIsAddChairmanOpen(true)}>Add Chairman</button>
+                </div>
+              )}
+              {/* Add Chairman Modal */}
+              {isAddChairmanOpen && (
+                <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
+                  <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md">
+                    <h3 className="text-lg font-bold mb-4">Add Chairman</h3>
+                    <form onSubmit={handleAddChairman}>
+                      <div className="mb-3">
+                        <input type="text" placeholder="Name" className="border rounded px-3 py-2 w-full" value={chairmanForm.name} onChange={e => setChairmanForm({ ...chairmanForm, name: e.target.value })} required />
+                      </div>
+                      <div className="mb-3">
+                        <input type="text" placeholder="Employee ID" className="border rounded px-3 py-2 w-full" value={chairmanForm.employeeId} onChange={e => setChairmanForm({ ...chairmanForm, employeeId: e.target.value })} required />
+                      </div>
+                      <div className="mb-3">
+                        <input type="email" placeholder="Email" className="border rounded px-3 py-2 w-full" value={chairmanForm.email} onChange={e => setChairmanForm({ ...chairmanForm, email: e.target.value })} required />
+                      </div>
+                      <div className="mb-3">
+                        <input type="text" placeholder="Wallet Address" className="border rounded px-3 py-2 w-full" value={chairmanForm.wallet} onChange={e => setChairmanForm({ ...chairmanForm, wallet: e.target.value })} required />
+                      </div>
+                      <div className="mb-3 flex items-center gap-2">
+                        <input type="checkbox" checked={chairmanForm.isActive} onChange={e => setChairmanForm({ ...chairmanForm, isActive: e.target.checked })} id="isActiveChairman" />
+                        <label htmlFor="isActiveChairman">Active</label>
+                      </div>
+                      <div className="flex justify-end gap-2 mt-4">
+                        <button type="button" className="px-4 py-2 border rounded" onClick={() => setIsAddChairmanOpen(false)}>Cancel</button>
+                        <button type="submit" className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">Add</button>
+                      </div>
+                    </form>
+                  </div>
+                </div>
+              )}
+              {/* Chairman Table */}
+              <div className="overflow-x-auto mb-8">
+                <table className="min-w-full border divide-y divide-gray-200 text-center">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-4 py-2 border text-xs font-bold text-gray-700 uppercase">Sr.</th>
+                      <th className="px-4 py-2 border text-xs font-bold text-gray-700 uppercase">Name</th>
+                      <th className="px-4 py-2 border text-xs font-bold text-gray-700 uppercase">Employee_id</th>
+                      <th className="px-4 py-2 border text-xs font-bold text-gray-700 uppercase">Email</th>
+                      <th className="px-4 py-2 border text-xs font-bold text-gray-700 uppercase">Status</th>
+                      <th className="px-4 py-2 border text-xs font-bold text-gray-700 uppercase">Wallet Address</th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {chairmen.map((chair, idx) => (
+                      <tr key={chair.id} className={idx % 2 === 0 ? 'bg-gray-50' : ''}>
+                        <td className="px-4 py-2 border font-semibold">{idx + 1}</td>
+                        <td className="px-4 py-2 border">{chair.name}</td>
+                        <td className="px-4 py-2 border font-mono">{chair.employeeId}</td>
+                        <td className="px-4 py-2 border">{chair.email}</td>
+                        <td className="px-4 py-2 border">
+                          <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${chair.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>{chair.isActive ? 'Active' : 'Inactive'}</span>
+                        </td>
+                        <td className="px-4 py-2 border font-mono text-xs">{chair.wallet}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              {/* ...rest of the chairman panel... */}
             </div>
           )}
           {activePanel === 'instructor' && (
             <div className="bg-white rounded-xl shadow-lg p-8 transition-all duration-200">
               <h2 className="text-3xl font-bold text-blue-700 tracking-tight mb-8">Instructor Panel</h2>
-              <InstructorPanel />
+              {/* Admin can add instructor */}
+              {user?.role === 'admin' && (
+                <div className="mb-4 flex justify-end">
+                  <button className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700" onClick={() => setIsAddInstructorOpen(true)}>Add Instructor</button>
+                </div>
+              )}
+              {/* Add Instructor Modal */}
+              {isAddInstructorOpen && (
+                <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
+                  <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md">
+                    <h3 className="text-lg font-bold mb-4">Add Instructor</h3>
+                    <form onSubmit={handleAddInstructor}>
+                      <div className="mb-3">
+                        <input type="text" placeholder="Name" className="border rounded px-3 py-2 w-full" value={instructorForm.name} onChange={e => setInstructorForm({ ...instructorForm, name: e.target.value })} required />
+                      </div>
+                      <div className="mb-3">
+                        <input type="text" placeholder="Employee ID" className="border rounded px-3 py-2 w-full" value={instructorForm.employeeId} onChange={e => setInstructorForm({ ...instructorForm, employeeId: e.target.value })} required />
+                      </div>
+                      <div className="mb-3">
+                        <input type="email" placeholder="Email" className="border rounded px-3 py-2 w-full" value={instructorForm.email} onChange={e => setInstructorForm({ ...instructorForm, email: e.target.value })} required />
+                      </div>
+                      <div className="mb-3">
+                        <input type="text" placeholder="Wallet Address" className="border rounded px-3 py-2 w-full" value={instructorForm.wallet} onChange={e => setInstructorForm({ ...instructorForm, wallet: e.target.value })} required />
+                      </div>
+                      <div className="mb-3 flex items-center gap-2">
+                        <input type="checkbox" checked={instructorForm.isActive} onChange={e => setInstructorForm({ ...instructorForm, isActive: e.target.checked })} id="isActiveInstructor" />
+                        <label htmlFor="isActiveInstructor">Active</label>
+                      </div>
+                      <div className="flex justify-end gap-2 mt-4">
+                        <button type="button" className="px-4 py-2 border rounded" onClick={() => setIsAddInstructorOpen(false)}>Cancel</button>
+                        <button type="submit" className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">Add</button>
+                      </div>
+                    </form>
+                  </div>
+                </div>
+              )}
+              {/* Instructor Table */}
+              <div className="overflow-x-auto mb-8">
+                <table className="min-w-full border divide-y divide-gray-200 text-center">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-4 py-2 border text-xs font-bold text-gray-700 uppercase">Sr.</th>
+                      <th className="px-4 py-2 border text-xs font-bold text-gray-700 uppercase">Name</th>
+                      <th className="px-4 py-2 border text-xs font-bold text-gray-700 uppercase">Employee_id</th>
+                      <th className="px-4 py-2 border text-xs font-bold text-gray-700 uppercase">Email</th>
+                      <th className="px-4 py-2 border text-xs font-bold text-gray-700 uppercase">Status</th>
+                      <th className="px-4 py-2 border text-xs font-bold text-gray-700 uppercase">Wallet Address</th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {instructors.map((inst, idx) => (
+                      <tr key={inst.id} className={idx % 2 === 0 ? 'bg-gray-50' : ''}>
+                        <td className="px-4 py-2 border font-semibold">{idx + 1}</td>
+                        <td className="px-4 py-2 border">{inst.name}</td>
+                        <td className="px-4 py-2 border font-mono">{inst.employeeId}</td>
+                        <td className="px-4 py-2 border">{inst.email}</td>
+                        <td className="px-4 py-2 border">
+                          <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${inst.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>{inst.isActive ? 'Active' : 'Inactive'}</span>
+                        </td>
+                        <td className="px-4 py-2 border font-mono text-xs">{inst.wallet}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              {/* ...rest of the instructor panel... */}
             </div>
           )}
         </div>
