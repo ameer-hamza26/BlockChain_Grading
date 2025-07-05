@@ -141,7 +141,7 @@ export default function StudentPanel() {
           <thead className="bg-gray-50">
             <tr>
               <th className="px-4 py-2 text-left text-xs font-bold text-gray-700 uppercase border">Sr. No</th>
-              <th className="px-4 py-2 text-left text-xs font-bold text-gray-700 uppercase border">Std id</th>
+              <th className="px-4 py-2 text-left text-xs font-bold text-gray-700 uppercase border">Registration</th>
               <th className="px-4 py-2 text-left text-xs font-bold text-gray-700 uppercase border">Hashed</th>
               <th className="px-4 py-2 text-left text-xs font-bold text-gray-700 uppercase border">Course</th>
               <th className="px-4 py-2 text-left text-xs font-bold text-gray-700 uppercase border">Type</th>
@@ -152,7 +152,7 @@ export default function StudentPanel() {
             {studentGrades.map((grade, idx) => (
               <tr key={grade.id}>
                 <td className="px-4 py-2 border font-bold text-blue-700">{idx + 1}</td>
-                <td className="px-4 py-2 border font-bold text-blue-700">{grade.stdId}</td>
+                <td className="px-4 py-2 border font-bold text-blue-700">22pwbcs0952</td>
                 <td className="px-4 py-2 border font-bold text-blue-700">{grade.hashed}</td>
                 <td className="px-4 py-2 border font-bold text-blue-700">{grade.course}</td>
                 <td className="px-4 py-2 border font-bold text-blue-700">{grade.type}</td>

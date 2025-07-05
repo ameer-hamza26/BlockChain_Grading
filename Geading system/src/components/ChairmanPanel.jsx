@@ -1,5 +1,11 @@
 import React, { useState } from 'react';
 
+// Mock chairman data
+const mockChairmen = [
+  { id: 1, employeeId: 'EMP001', email: 'chairman1@example.com', isActive: true, wallet: '0xabc123...' },
+  { id: 2, employeeId: 'EMP002', email: 'chairman2@example.com', isActive: false, wallet: '0xdef456...' },
+];
+
 // Mock instructors
 const mockInstructors = [
   { id: 1, name: 'Jane Smith' },
@@ -9,7 +15,7 @@ const mockInstructors = [
 export default function ChairmanPanel() {
   // Courses
   const [courses, setCourses] = useState([]);
-  const [courseForm, setCourseForm] = useState({ title: '', code: '', credits: '' });
+  const [courseForm, setCourseForm] = useState({ title: '', code: '', credits: '', quizzes: 3, assignments: 3, mid: 1, final: 1 });
 
   // Assignments, Exams, Quizzes
   const [assignments, setAssignments] = useState([]);
@@ -23,7 +29,7 @@ export default function ChairmanPanel() {
   const handleAddCourse = (e) => {
     e.preventDefault();
     setCourses([...courses, { ...courseForm, id: courses.length + 1 }]);
-    setCourseForm({ title: '', code: '', credits: '' });
+    setCourseForm({ title: '', code: '', credits: '', quizzes: 3, assignments: 3, mid: 1, final: 1 });
   };
 
   // Assign course to instructor
@@ -57,6 +63,35 @@ export default function ChairmanPanel() {
   return (
     <div className="bg-white rounded-lg shadow p-6">
       <h2 className="text-2xl font-bold text-gray-800 mb-6">Chairman Dashboard</h2>
+      {/* Chairman Table */}
+      <div className="overflow-x-auto mb-8">
+        <table className="min-w-full border divide-y divide-gray-200 text-center">
+          <thead className="bg-gray-50">
+            <tr>
+              <th className="px-4 py-2 border text-xs font-bold text-gray-700 uppercase">Sr.</th>
+              <th className="px-4 py-2 border text-xs font-bold text-gray-700 uppercase">Employee_id</th>
+              <th className="px-4 py-2 border text-xs font-bold text-gray-700 uppercase">Email</th>
+              <th className="px-4 py-2 border text-xs font-bold text-gray-700 uppercase">Status</th>
+              <th className="px-4 py-2 border text-xs font-bold text-gray-700 uppercase">Wallet Address</th>
+            </tr>
+          </thead>
+          <tbody className="bg-white divide-y divide-gray-200">
+            {mockChairmen.map((chair, idx) => (
+              <tr key={chair.id} className={idx % 2 === 0 ? 'bg-gray-50' : ''}>
+                <td className="px-4 py-2 border font-semibold">{idx + 1}</td>
+                <td className="px-4 py-2 border font-mono">{chair.employeeId}</td>
+                <td className="px-4 py-2 border">{chair.email}</td>
+                <td className="px-4 py-2 border">
+                  <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${chair.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                    {chair.isActive ? 'Active' : 'Inactive'}
+                  </span>
+                </td>
+                <td className="px-4 py-2 border font-mono text-xs">{chair.wallet}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
 
       {/* Add Course */}
       <div className="mb-8">
@@ -87,16 +122,56 @@ export default function ChairmanPanel() {
             required
             min={1}
           />
+          <input
+            type="number"
+            placeholder="# Quizzes"
+            className="border rounded px-3 py-2 w-28"
+            value={courseForm.quizzes}
+            onChange={e => setCourseForm({ ...courseForm, quizzes: e.target.value })}
+            min={0}
+            required
+          />
+          <input
+            type="number"
+            placeholder="# Assignments"
+            className="border rounded px-3 py-2 w-32"
+            value={courseForm.assignments}
+            onChange={e => setCourseForm({ ...courseForm, assignments: e.target.value })}
+            min={0}
+            required
+          />
+          <input
+            type="number"
+            placeholder="# Mid"
+            className="border rounded px-3 py-2 w-20"
+            value={courseForm.mid}
+            onChange={e => setCourseForm({ ...courseForm, mid: e.target.value })}
+            min={0}
+            required
+          />
+          <input
+            type="number"
+            placeholder="# Final"
+            className="border rounded px-3 py-2 w-20"
+            value={courseForm.final}
+            onChange={e => setCourseForm({ ...courseForm, final: e.target.value })}
+            min={0}
+            required
+          />
           <button type="submit" className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">Add</button>
         </form>
         {/* Courses Table */}
         {courses.length > 0 && (
-          <table className="min-w-full mt-4 divide-y divide-gray-200">
+          <table className="min-w-full mt-4 divide-y divide-gray-200 text-center">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Title</th>
-                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Code</th>
-                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Credits</th>
+                <th className="px-4 py-2 text-xs font-medium text-gray-500 uppercase">Title</th>
+                <th className="px-4 py-2 text-xs font-medium text-gray-500 uppercase">Code</th>
+                <th className="px-4 py-2 text-xs font-medium text-gray-500 uppercase">Credits</th>
+                <th className="px-4 py-2 text-xs font-medium text-gray-500 uppercase">Quizzes</th>
+                <th className="px-4 py-2 text-xs font-medium text-gray-500 uppercase">Assignments</th>
+                <th className="px-4 py-2 text-xs font-medium text-gray-500 uppercase">Mid</th>
+                <th className="px-4 py-2 text-xs font-medium text-gray-500 uppercase">Final</th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
@@ -105,6 +180,10 @@ export default function ChairmanPanel() {
                   <td className="px-4 py-2">{course.title}</td>
                   <td className="px-4 py-2">{course.code}</td>
                   <td className="px-4 py-2">{course.credits}</td>
+                  <td className="px-4 py-2">{course.quizzes}</td>
+                  <td className="px-4 py-2">{course.assignments}</td>
+                  <td className="px-4 py-2">{course.mid}</td>
+                  <td className="px-4 py-2">{course.final}</td>
                 </tr>
               ))}
             </tbody>

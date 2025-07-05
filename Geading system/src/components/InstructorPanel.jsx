@@ -1,180 +1,185 @@
-import { useState, useEffect } from 'react';
-import { getCourses, getGrades, submitGrade } from '../services/web3';
+import React, { useState, useEffect } from 'react';
+import {
+  getCourses,
+  getUsers,
+  getStudentsForCourse,
+  enrollStudentInCourse
+} from '../services/web3.jsx';
 
-function Notification({ message, type, onClose }) {
-  if (!message) return null;
-  return (
-    <div className={`fixed top-4 left-1/2 transform -translate-x-1/2 z-50 px-4 py-2 rounded shadow-lg text-white ${type === 'error' ? 'bg-red-600' : 'bg-green-600'}`}
-      onClick={onClose}
-    >
-      {message}
-    </div>
-  );
-}
-
-export default function InstructorPanel() {
+const InstructorPanel = () => {
+  // State for courses, students, UI, etc.
   const [courses, setCourses] = useState([]);
-  const [selectedCourse, setSelectedCourse] = useState(null);
-  const [grades, setGrades] = useState([]);
-  const [formData, setFormData] = useState({
-    evaluationCode: '',
-    marks: ''
-  });
-  const [loading, setLoading] = useState(false);
-  const [loadingGrades, setLoadingGrades] = useState(false);
-  const [notification, setNotification] = useState({ message: '', type: 'success' });
+  const [studentCounts, setStudentCounts] = useState({});
+  const [openCourse, setOpenCourse] = useState(null);
+  const [enrolledStudents, setEnrolledStudents] = useState([]);
+  const [allStudents, setAllStudents] = useState([]);
+  const [search, setSearch] = useState('');
+  const [addStudentOpen, setAddStudentOpen] = useState(false);
+  const [selectedAddStudent, setSelectedAddStudent] = useState('');
+  const [addLoading, setAddLoading] = useState(false);
+  const [instructorName, setInstructorName] = useState('');
 
+  // Load courses and students on mount
   useEffect(() => {
     loadCourses();
+    getUsers().then(users => setAllStudents(users.filter(u => u.role === 'student')));
   }, []);
 
+  // Load courses and student counts
   const loadCourses = async () => {
-    setLoading(true);
-    try {
-      const courseList = await getCourses();
-      setCourses(courseList.filter(c => c.instructorId === 22)); //temporaray ID
-    } catch (err) {
-      setNotification({ message: 'Failed to load courses.', type: 'error' });
+    const courseList = await getCourses();
+    const filteredCourses = courseList.filter(c => c.instructorId === 2);
+    setCourses(filteredCourses);
+    // Fetch real-time student counts for each course
+    const counts = {};
+    for (const course of filteredCourses) {
+      const students = await getStudentsForCourse(course.id);
+      counts[course.id] = students.length;
     }
-    setLoading(false);
+    setStudentCounts(counts);
   };
 
-  const loadGrades = async (courseId) => {
-    setLoadingGrades(true);
-    try {
-      const gradeList = await getGrades(courseId);
-      setGrades(gradeList);
-    } catch (err) {
-      setNotification({ message: 'Failed to load grades.', type: 'error' });
-    }
-    setLoadingGrades(false);
+  // Open course details
+  const handleOpenCourse = async (courseId) => {
+    const course = courses.find(c => c.id === courseId);
+    setOpenCourse(course);
+    const students = await getStudentsForCourse(courseId);
+    setEnrolledStudents(students);
+    // Find instructor name
+    const users = await getUsers();
+    const instructor = users.find(u => u.id === course.instructorId);
+    setInstructorName(instructor ? instructor.name : '');
   };
 
-  const handleSubmitGrade = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    try {
-      await submitGrade(formData.evaluationCode, formData.marks);
-      setFormData({ evaluationCode: '', marks: '' });
-      setNotification({ message: 'Grade submitted!', type: 'success' });
-      if (selectedCourse) {
-        loadGrades(selectedCourse);
-      }
-    } catch (err) {
-      setNotification({ message: 'Failed to submit grade.', type: 'error' });
-    }
-    setLoading(false);
+  // Add student to course
+  const handleAddStudent = async (studentId) => {
+    setAddLoading(true);
+    await enrollStudentInCourse(openCourse.id, studentId);
+    const students = await getStudentsForCourse(openCourse.id);
+    setEnrolledStudents(students);
+    setAddLoading(false);
+    // Update the count for this course
+    setStudentCounts(prev => ({ ...prev, [openCourse.id]: students.length }));
   };
 
-  const handleCourseChange = (e) => {
-    const courseId = e.target.value;
-    setSelectedCourse(courseId);
-    if (courseId) {
-      loadGrades(courseId);
-    } else {
-      setGrades([]);
-    }
-  };
+  // Filter students by search
+  const filteredStudents = enrolledStudents.filter(s =>
+    s.registrationNumber.toLowerCase().includes(search.toLowerCase()) ||
+    s.email.toLowerCase().includes(search.toLowerCase())
+  );
 
   return (
-    <div className="bg-white rounded-lg shadow p-6 relative">
-      <Notification message={notification.message} type={notification.type} onClose={() => setNotification({ message: '', type: 'success' })} />
-      <h2 className="text-2xl font-bold text-gray-800 mb-6">Grading Interface</h2>
-      {loading && <div className="absolute inset-0 bg-white bg-opacity-60 flex items-center justify-center z-10"><div className="loader ease-linear rounded-full border-4 border-t-4 border-gray-200 h-12 w-12 mb-4 animate-spin"></div></div>}
-      <div className="mb-6">
-        <label htmlFor="course" className="block text-sm font-medium text-gray-700 mb-1">
-          Select Course
-        </label>
-        <select
-          id="course"
-          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-          onChange={handleCourseChange}
-          value={selectedCourse || ''}
-          disabled={loading}
-        >
-          <option value="">Numerical</option>
-          <option value="">DSA</option>
-          {courses.map(course => (
-            <option key={course.id} value={course.id}>
-              {course.title} ({course.code})
-            </option>
-          ))}
-        </select>
-      </div>
-      <form onSubmit={handleSubmitGrade} className="mb-8">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div>
-            <label htmlFor="evaluationCode" className="block text-sm font-medium text-gray-700 mb-1">
-              Evaluation Code
-            </label>
-            <input
-              id="evaluationCode"
-              type="text"
-              className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-              value={formData.evaluationCode}
-              onChange={(e) => setFormData({ ...formData, evaluationCode: e.target.value })}
-              required
-              disabled={loading}
-            />
-          </div>
-          <div>
-            <label htmlFor="marks" className="block text-sm font-medium text-gray-700 mb-1">
-              Marks
-            </label>
-            <input
-              id="marks"
-              type="text"
-              className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-              value={formData.marks}
-              onChange={(e) => setFormData({ ...formData, marks: e.target.value })}
-              placeholder="e.g. 8/10"
-              required
-              disabled={loading}
-            />
-          </div>
-          <div className="flex items-end">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-blue-200 p-8">
+      {/* Course Cards */}
+      <div className="space-y-6 mb-8">
+        {courses.map((course) => (
+          <div key={course.id} className="flex items-center bg-white shadow-md border border-gray-200 rounded-xl p-6 justify-between hover:shadow-lg transition">
+            <div className="flex-1">
+              <div className="font-bold text-xl text-blue-800">{course.title}</div>
+              <div className="font-mono text-base text-gray-500">{course.code}</div>
+            </div>
+            <div className="flex flex-col items-center mx-6">
+              <div className="border-2 border-blue-400 px-6 py-2 text-2xl font-bold mb-1 min-w-[60px] text-center bg-blue-50 text-blue-700 rounded-lg">{studentCounts[course.id] ?? 0}</div>
+              <div className="text-sm mt-0.5 text-gray-600">Total Students</div>
+            </div>
             <button
-              type="submit"
-              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 w-full"
-              disabled={loading}
+              className="border-2 border-blue-600 px-10 py-2 text-xl font-semibold ml-6 bg-blue-600 text-white rounded-lg shadow hover:bg-blue-700 transition"
+              onClick={() => handleOpenCourse(course.id)}
             >
-              {loading ? 'Submitting...' : 'Submit Grade'}
+              Open
             </button>
           </div>
-        </div>
-      </form>
-      {selectedCourse && (
-        <div>
-          <h3 className="text-lg font-medium text-gray-900 mb-4">Grade Records</h3>
-          {loadingGrades && <div className="absolute inset-0 bg-white bg-opacity-60 flex items-center justify-center z-10"><div className="loader ease-linear rounded-full border-4 border-t-4 border-gray-200 h-12 w-12 mb-4 animate-spin"></div></div>}
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Code</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Student</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Marks</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Timestamp</th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {grades.map((grade) => (
-                  <tr key={grade.txHash}>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-mono">{grade.evaluationCode}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{grade.studentName}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 capitalize">{grade.type}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-bold">{grade.marks}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {new Date(grade.timestamp * 1000).toLocaleString()}
-                    </td>
+        ))}
+      </div>
+      {/* Course Details Modal/Panel */}
+      {openCourse && (
+        <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
+          <div className="bg-white border-2 border-blue-600 rounded-2xl shadow-2xl p-10 w-full max-w-4xl relative">
+            {/* Course Metadata */}
+            <div className="flex justify-between items-start mb-8">
+              <div>
+                <div className="font-bold text-3xl text-blue-800 mb-1">{openCourse.title}</div>
+                <div className="font-mono text-xl text-gray-500 mb-2">{openCourse.code}</div>
+                <div className="text-gray-700 mb-1">Credits: <span className="font-semibold">{openCourse.credits}</span></div>
+                <div className="text-gray-700 mb-1">Instructor: <span className="font-semibold">{instructorName}</span></div>
+                <div className="text-gray-700">Total Students: <span className="font-semibold">{enrolledStudents.length}</span></div>
+              </div>
+              <div className="flex flex-col gap-4 items-end">
+                <button className="border-2 border-blue-600 px-10 py-2 text-lg font-semibold w-40 bg-white text-blue-700 rounded-lg hover:bg-blue-50" onClick={() => setOpenCourse(null)}>Close</button>
+                <button className="border-2 border-blue-600 px-10 py-2 text-lg font-semibold w-40 bg-blue-600 text-white rounded-lg shadow hover:bg-blue-700" onClick={() => setAddStudentOpen(true)}>Add Student</button>
+              </div>
+            </div>
+            <input
+              type="text"
+              placeholder="Search students by registration or email..."
+              className="border-2 border-blue-400 w-full px-4 py-3 mb-8 text-lg text-center font-semibold rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300"
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+            />
+            <div className="overflow-x-auto">
+              <table className="min-w-full border divide-y divide-blue-200 rounded-lg">
+                <thead className="bg-blue-50">
+                  <tr>
+                    <th className="px-4 py-2 border text-xs font-bold text-blue-700 uppercase">#</th>
+                    <th className="px-4 py-2 border text-xs font-bold text-blue-700 uppercase">Registration</th>
+                    <th className="px-4 py-2 border text-xs font-bold text-blue-700 uppercase">Email</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="bg-white divide-y divide-blue-100">
+                  {filteredStudents.map((student, idx) => (
+                    <tr key={student.id} className={idx % 2 === 0 ? 'bg-blue-50' : ''}>
+                      <td className="px-4 py-2 border text-center font-semibold">{idx + 1}</td>
+                      <td className="px-4 py-2 border font-mono text-blue-700 font-bold text-center">{student.registrationNumber}</td>
+                      <td className="px-4 py-2 border text-center">{student.email}</td>
+                    </tr>
+                  ))}
+                  {filteredStudents.length === 0 && (
+                    <tr>
+                      <td colSpan={3} className="px-4 py-6 text-center text-gray-400">No students found.</td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+            {/* Add Student Modal */}
+            {addStudentOpen && (
+              <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
+                <div className="bg-white border-2 border-blue-600 rounded-xl p-8 w-full max-w-md shadow-xl">
+                  <h3 className="text-xl font-bold mb-4 text-blue-700">Add Student</h3>
+                  <div className="mb-4">
+                    <select
+                      className="border-2 border-blue-400 w-full px-3 py-2 rounded-lg"
+                      onChange={e => setSelectedAddStudent(e.target.value)}
+                      value={selectedAddStudent || ''}
+                    >
+                      <option value="">Select student</option>
+                      {allStudents.filter(s => !enrolledStudents.some(es => es.id === s.id)).map(s => (
+                        <option key={s.id} value={s.id}>{s.registrationNumber} - {s.email}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="flex justify-end gap-3">
+                    <button className="border-2 border-blue-600 px-6 py-2 rounded-lg" onClick={() => setAddStudentOpen(false)}>Cancel</button>
+                    <button
+                      className="border-2 border-blue-600 px-6 py-2 bg-blue-600 text-white rounded-lg shadow"
+                      onClick={async () => {
+                        await handleAddStudent(Number(selectedAddStudent));
+                        setAddStudentOpen(false);
+                        setSelectedAddStudent('');
+                      }}
+                      disabled={!selectedAddStudent || addLoading}
+                    >
+                      {addLoading ? 'Adding...' : 'Add'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}
     </div>
   );
-}
+};
+
+export default InstructorPanel;

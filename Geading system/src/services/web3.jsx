@@ -6,10 +6,10 @@
 
 // Mock data for development
 let mockUsers = [
-  { id: 1, name: 'John Doe', email: 'john@example.com', role: 'student', isActive: true, wallet: '0x1234...' },
-  { id: 2, name: 'Jane Smith', email: 'jane@example.com', role: 'instructor', isActive: true, wallet: '0x5678...' },
-  { id: 3, name: 'Admin User', email: 'admin@example.com', role: 'admin', isActive: true, wallet: '0x9abc...' },
-  { id: 4, name: 'Majeed', email: 'majeed@example.com', role: 'admin', isActive: true, wallet: '0x9abc...' }
+  { id: 1, name: 'John Doe', email: 'john@example.com', role: 'student', registrationNumber: '22pwbcs0952', isActive: true, wallet: '0x1234...' },
+  { id: 2, name: 'Jane Smith', email: 'jane@example.com', role: 'instructor', registrationNumber: 'EMP001', isActive: true, wallet: '0x5678...' },
+  { id: 3, name: 'Admin User', email: 'admin@example.com', role: 'admin', registrationNumber: 'ADM001', isActive: true, wallet: '0x9abc...' },
+  { id: 4, name: 'Majeed', email: 'majeed@example.com', role: 'admin', registrationNumber: 'ADM002', isActive: true, wallet: '0x9abc...' }
 ];
 
 let mockCourses = [
@@ -21,6 +21,12 @@ let mockGrades = [
   { evaluationCode: 'CS101_QUIZ1', studentName: 'John Doe', type: 'quiz', marks: '8/10', timestamp: Date.now() / 1000, txHash: '0x123...' },
   { evaluationCode: 'CS101_HW1', studentName: 'John Doe', type: 'homework', marks: '9/10', timestamp: Date.now() / 1000, txHash: '0x456...' }
 ];
+
+// Mock enrollment: courseId -> array of studentIds
+let mockEnrollments = {
+  1: [1], // John Doe enrolled in CS101
+  2: [],
+};
 
 export async function initWeb3() {
   // Mock implementation
@@ -34,13 +40,14 @@ export async function getCurrentAccount() {
 }
 
 // User Management
-export async function addUser(name, email, role, password) {
+export async function addUser(name, email, role, password, registrationNumber) {
   // Mock implementation
   const newUser = {
     id: mockUsers.length + 1,
     name,
     email,
     role,
+    registrationNumber,
     isActive: true,
     wallet: `0x${Math.random().toString(16).substr(2, 8)}...`
   };
@@ -118,4 +125,27 @@ export async function submitGrade(evaluationCode, marks) {
 export async function getGrades(courseId) {
   // Mock implementation
   return mockGrades.filter(grade => grade.evaluationCode.startsWith(`${courseId}_`));
+}
+
+// Return the number of students enrolled in a course (mock)
+export async function getStudentCountForCourse(courseId) {
+  // For demo, return fixed or random values
+  const mockCounts = {
+    1: 40,
+    2: 0,
+  };
+  return mockCounts[courseId] ?? Math.floor(Math.random() * 50);
+}
+
+export async function getStudentsForCourse(courseId) {
+  // Return user objects for students enrolled in the course
+  const studentIds = mockEnrollments[courseId] || [];
+  return mockUsers.filter(u => studentIds.includes(u.id) && u.role === 'student');
+}
+
+export async function enrollStudentInCourse(courseId, studentId) {
+  if (!mockEnrollments[courseId]) mockEnrollments[courseId] = [];
+  if (!mockEnrollments[courseId].includes(studentId)) {
+    mockEnrollments[courseId].push(studentId);
+  }
 }

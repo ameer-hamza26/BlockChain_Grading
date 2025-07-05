@@ -1,6 +1,9 @@
 import { useState, useEffect } from 'react';
 import { getUsers, addUser, updatePassword, deleteUser } from '../services/web3.jsx';
 import { ClipboardDocumentIcon, TrashIcon, PencilIcon } from '@heroicons/react/24/outline';
+import ChairmanPanel from './ChairmanPanel.jsx';
+import InstructorPanel from './InstructorPanel.jsx';
+import { UserGroupIcon, AcademicCapIcon, ClipboardDocumentListIcon, DocumentTextIcon } from '@heroicons/react/24/outline';
 
 function Notification({ message, type, onClose }) {
   if (!message) return null;
@@ -23,6 +26,7 @@ const mockGrades = [
 
 export default function AdminPanel() {
   const [users, setUsers] = useState([]);
+  const [activePanel, setActivePanel] = useState('students'); // students | grading | chairman | instructor
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState(null);
@@ -30,7 +34,8 @@ export default function AdminPanel() {
     name: '',
     email: '',
     role: 'student',
-    password: ''
+    password: '',
+    registrationNumber: ''
   });
   const [loading, setLoading] = useState(false);
   const [notification, setNotification] = useState({ message: '', type: 'success' });
@@ -54,9 +59,9 @@ export default function AdminPanel() {
     e.preventDefault();
     setLoading(true);
     try {
-      await addUser(formData.name, formData.email, formData.role, formData.password);
+      await addUser(formData.name, formData.email, formData.role, formData.password, formData.registrationNumber);
       setIsAddModalOpen(false);
-      setFormData({ name: '', email: '', role: 'student', password: '' });
+      setFormData({ name: '', email: '', role: 'student', password: '', registrationNumber: '' });
       setNotification({ message: 'User added successfully!', type: 'success' });
       loadUsers();
     } catch (err) {
@@ -93,96 +98,129 @@ export default function AdminPanel() {
     }
   };
 
+  // Only show students in the students panel
+  const students = users.filter(u => u.role === 'student');
+
   return (
-    <div className="bg-white rounded-lg shadow p-6 relative">
-      <Notification message={notification.message} type={notification.type} onClose={() => setNotification({ message: '', type: 'success' })} />
-      <div className="flex justify-between items-center mb-6">
-        <h2 className="text-2xl font-bold text-gray-800">User Management</h2>
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-blue-200 flex">
+      {/* Sidebar */}
+      <div className="w-64 bg-white/90 border-r flex flex-col p-6 space-y-4 shadow-lg">
+        <h1 className="text-3xl font-extrabold mb-10 text-blue-700 tracking-tight flex items-center gap-2">
+          <AcademicCapIcon className="h-8 w-8 text-blue-500" />
+          Admin <span className="underline decoration-blue-400">Dashboard</span>
+        </h1>
         <button
-          onClick={() => setIsAddModalOpen(true)}
-          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded"
-          disabled={loading}
+          className={`flex items-center gap-3 border px-4 py-3 rounded-lg text-lg font-semibold mb-2 transition-all duration-150 hover:bg-blue-100 ${activePanel === 'chairman' ? 'bg-blue-200 text-blue-900' : 'text-gray-700'}`}
+          onClick={() => setActivePanel('chairman')}
         >
-          Add New User
+          <AcademicCapIcon className="h-6 w-6" /> Chairman
+        </button>
+        <button
+          className={`flex items-center gap-3 border px-4 py-3 rounded-lg text-lg font-semibold mb-2 transition-all duration-150 hover:bg-blue-100 ${activePanel === 'instructor' ? 'bg-blue-200 text-blue-900' : 'text-gray-700'}`}
+          onClick={() => setActivePanel('instructor')}
+        >
+          <UserGroupIcon className="h-6 w-6" /> Instructor
+        </button>
+        <button
+          className={`flex items-center gap-3 border px-4 py-3 rounded-lg text-lg font-semibold mb-2 transition-all duration-150 hover:bg-blue-100 ${activePanel === 'students' ? 'bg-blue-200 text-blue-900' : 'text-gray-700'}`}
+          onClick={() => setActivePanel('students')}
+        >
+          <ClipboardDocumentListIcon className="h-6 w-6" /> Students
+        </button>
+        <button
+          className={`flex items-center gap-3 border px-4 py-3 rounded-lg text-lg font-semibold mb-2 transition-all duration-150 hover:bg-blue-100 ${activePanel === 'grading' ? 'bg-blue-200 text-blue-900' : 'text-gray-700'}`}
+          onClick={() => setActivePanel('grading')}
+        >
+          <DocumentTextIcon className="h-6 w-6" /> Grading Log
         </button>
       </div>
-      {loading && <div className="absolute inset-0 bg-white bg-opacity-60 flex items-center justify-center z-10"><div className="loader ease-linear rounded-full border-4 border-t-4 border-gray-200 h-12 w-12 mb-4 animate-spin"></div></div>}
-      <div className="overflow-x-auto mb-10">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Role</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Wallet</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
-            {users.map((user) => (
-              <tr key={user.id}>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{user.name}</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{user.email}</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 capitalize">{user.role}</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                  <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
-                    ${user.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                    {user.isActive ? 'Active' : 'Inactive'}
-                  </span>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 font-mono">{user.wallet}</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                  <div className="flex space-x-2">
-                    <button
-                      onClick={() => {
-                        setSelectedUser(user);
-                        setIsEditModalOpen(true);
-                      }}
-                      className="text-blue-600 hover:text-blue-900"
-                    >
-                      <PencilIcon className="h-5 w-5" />
-                    </button>
-                    <button
-                      onClick={() => handleDeleteUser(user.id)}
-                      className="text-red-600 hover:text-red-900"
-                    >
-                      <TrashIcon className="h-5 w-5" />
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-      {/* Grades Table */}
-      <h2 className="text-2xl font-bold text-gray-800 mb-4 mt-8">All Students' Grades</h2>
-      <div className="overflow-x-auto">
-        <table className="min-w-full divide-y divide-gray-200 border">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-4 py-2 text-left text-xs font-bold text-gray-700 uppercase border">Sr. No</th>
-              <th className="px-4 py-2 text-left text-xs font-bold text-gray-700 uppercase border">Std id</th>
-              <th className="px-4 py-2 text-left text-xs font-bold text-gray-700 uppercase border">Hashed</th>
-              <th className="px-4 py-2 text-left text-xs font-bold text-gray-700 uppercase border">Course</th>
-              <th className="px-4 py-2 text-left text-xs font-bold text-gray-700 uppercase border">Type</th>
-              <th className="px-4 py-2 text-left text-xs font-bold text-gray-700 uppercase border">Marks</th>
-            </tr>
-          </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
-            {mockGrades.map((grade, idx) => (
-              <tr key={grade.id}>
-                <td className="px-4 py-2 border font-bold text-blue-700">{idx + 1}</td>
-                <td className="px-4 py-2 border font-bold text-blue-700">{grade.stdId}</td>
-                <td className="px-4 py-2 border font-bold text-blue-700">{grade.hashed}</td>
-                <td className="px-4 py-2 border font-bold text-blue-700">{grade.course}</td>
-                <td className="px-4 py-2 border font-bold text-blue-700">{grade.type}</td>
-                <td className="px-4 py-2 border font-bold text-blue-700">{grade.marks}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+      {/* Main Content */}
+      <div className="flex-1 p-10 flex flex-col items-center">
+        <div className="w-full max-w-6xl">
+          {activePanel === 'students' && (
+            <div className="bg-white rounded-xl shadow-lg p-8 transition-all duration-200">
+              <div className="flex justify-between items-center mb-8">
+                <h2 className="text-3xl font-bold text-blue-700 tracking-tight">Students Panel</h2>
+                <button
+                  onClick={() => setIsAddModalOpen(true)}
+                  className="bg-gradient-to-r from-blue-500 to-blue-700 text-white px-6 py-2 rounded-lg font-semibold shadow hover:scale-105 transition-transform"
+                  disabled={loading}
+                >
+                  Add New
+                </button>
+              </div>
+              <div className="overflow-x-auto rounded-lg">
+                <table className="min-w-full border divide-y divide-gray-200 text-center">
+                  <thead className="bg-blue-50">
+                    <tr>
+                      <th className="px-4 py-2 border text-xs font-bold text-blue-700 uppercase">Sr.</th>
+                      <th className="px-4 py-2 border text-xs font-bold text-blue-700 uppercase">Registration</th>
+                      <th className="px-4 py-2 border text-xs font-bold text-blue-700 uppercase">Email</th>
+                      <th className="px-4 py-2 border text-xs font-bold text-blue-700 uppercase">Status</th>
+                      <th className="px-4 py-2 border text-xs font-bold text-blue-700 uppercase">Wallet Address</th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {students.map((student, idx) => (
+                      <tr key={student.id} className={idx % 2 === 0 ? 'bg-blue-50' : ''}>
+                        <td className="px-4 py-2 border font-semibold">{idx + 1}</td>
+                        <td className="px-4 py-2 border font-mono">{student.registrationNumber || student.email.split('@')[0]}</td>
+                        <td className="px-4 py-2 border">{student.email}</td>
+                        <td className="px-4 py-2 border">
+                          <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${student.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                            {student.isActive ? 'Active' : 'Inactive'}
+                          </span>
+                        </td>
+                        <td className="px-4 py-2 border font-mono text-xs">{student.wallet}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+          {activePanel === 'grading' && (
+            <div className="bg-white rounded-xl shadow-lg p-8 transition-all duration-200">
+              <h2 className="text-3xl font-bold text-blue-700 tracking-tight mb-8">Grading Log</h2>
+              <div className="overflow-x-auto rounded-lg">
+                <table className="min-w-full divide-y divide-gray-200 border text-center">
+                  <thead className="bg-blue-50">
+                    <tr>
+                      <th className="px-4 py-2 text-xs font-bold text-blue-700 uppercase border">Sr. No</th>
+                      <th className="px-4 py-2 text-xs font-bold text-blue-700 uppercase border">Std id</th>
+                      <th className="px-4 py-2 text-xs font-bold text-blue-700 uppercase border">Hashed</th>
+                      <th className="px-4 py-2 text-xs font-bold text-blue-700 uppercase border">Course</th>
+                      <th className="px-4 py-2 text-xs font-bold text-blue-700 uppercase border">Marks</th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {mockGrades.map((grade, idx) => (
+                      <tr key={grade.id} className={idx % 2 === 0 ? 'bg-blue-50' : ''}>
+                        <td className="px-4 py-2 border font-bold text-blue-700">{idx + 1}</td>
+                        <td className="px-4 py-2 border font-bold text-blue-700">{grade.stdId}</td>
+                        <td className="px-4 py-2 border font-bold text-blue-700">{grade.hashed}</td>
+                        <td className="px-4 py-2 border font-bold text-blue-700">{grade.course}</td>
+                        <td className="px-4 py-2 border font-bold text-blue-700">{grade.marks}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+          {activePanel === 'chairman' && (
+            <div className="bg-white rounded-xl shadow-lg p-8 transition-all duration-200">
+              <h2 className="text-3xl font-bold text-blue-700 tracking-tight mb-8">Chairman Panel</h2>
+              <ChairmanPanel />
+            </div>
+          )}
+          {activePanel === 'instructor' && (
+            <div className="bg-white rounded-xl shadow-lg p-8 transition-all duration-200">
+              <h2 className="text-3xl font-bold text-blue-700 tracking-tight mb-8">Instructor Panel</h2>
+              <InstructorPanel />
+            </div>
+          )}
+        </div>
       </div>
       {/* Add User Modal */}
       {isAddModalOpen && (
@@ -213,6 +251,19 @@ export default function AdminPanel() {
                   className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
                   value={formData.email}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  required
+                />
+              </div>
+              <div className="mb-4">
+                <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="registrationNumber">
+                  Registration Number
+                </label>
+                <input
+                  id="registrationNumber"
+                  type="text"
+                  className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+                  value={formData.registrationNumber}
+                  onChange={(e) => setFormData({ ...formData, registrationNumber: e.target.value })}
                   required
                 />
               </div>
