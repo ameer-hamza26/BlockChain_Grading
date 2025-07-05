@@ -13,6 +13,14 @@ function Notification({ message, type, onClose }) {
   );
 }
 
+// Mock grades data for demonstration
+const mockGrades = [
+  { id: 1, stdId: '22pwbcs234', hashed: 'PM2342', course: 'C0234', type: 'MID-TERM', marks: 19 },
+  { id: 2, stdId: '22pwbcs234', hashed: 'Q13454', course: 'CL2394', type: 'QUIZ 01', marks: 2 },
+  { id: 3, stdId: '21pwb2342', hashed: 'A23453', course: 'CL9823', type: 'ASSIGN. 02', marks: 2 },
+  { id: 4, stdId: '20pwb2390', hashed: 'PF2093', course: 'C2389', type: 'FINAL-TERM', marks: 45 },
+];
+
 export default function AdminPanel() {
   const [users, setUsers] = useState([]);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -99,7 +107,7 @@ export default function AdminPanel() {
         </button>
       </div>
       {loading && <div className="absolute inset-0 bg-white bg-opacity-60 flex items-center justify-center z-10"><div className="loader ease-linear rounded-full border-4 border-t-4 border-gray-200 h-12 w-12 mb-4 animate-spin"></div></div>}
-      <div className="overflow-x-auto">
+      <div className="overflow-x-auto mb-10">
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
             <tr>
@@ -148,7 +156,34 @@ export default function AdminPanel() {
           </tbody>
         </table>
       </div>
-
+      {/* Grades Table */}
+      <h2 className="text-2xl font-bold text-gray-800 mb-4 mt-8">All Students' Grades</h2>
+      <div className="overflow-x-auto">
+        <table className="min-w-full divide-y divide-gray-200 border">
+          <thead className="bg-gray-50">
+            <tr>
+              <th className="px-4 py-2 text-left text-xs font-bold text-gray-700 uppercase border">Sr. No</th>
+              <th className="px-4 py-2 text-left text-xs font-bold text-gray-700 uppercase border">Std id</th>
+              <th className="px-4 py-2 text-left text-xs font-bold text-gray-700 uppercase border">Hashed</th>
+              <th className="px-4 py-2 text-left text-xs font-bold text-gray-700 uppercase border">Course</th>
+              <th className="px-4 py-2 text-left text-xs font-bold text-gray-700 uppercase border">Type</th>
+              <th className="px-4 py-2 text-left text-xs font-bold text-gray-700 uppercase border">Marks</th>
+            </tr>
+          </thead>
+          <tbody className="bg-white divide-y divide-gray-200">
+            {mockGrades.map((grade, idx) => (
+              <tr key={grade.id}>
+                <td className="px-4 py-2 border font-bold text-blue-700">{idx + 1}</td>
+                <td className="px-4 py-2 border font-bold text-blue-700">{grade.stdId}</td>
+                <td className="px-4 py-2 border font-bold text-blue-700">{grade.hashed}</td>
+                <td className="px-4 py-2 border font-bold text-blue-700">{grade.course}</td>
+                <td className="px-4 py-2 border font-bold text-blue-700">{grade.type}</td>
+                <td className="px-4 py-2 border font-bold text-blue-700">{grade.marks}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
       {/* Add User Modal */}
       {isAddModalOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4">

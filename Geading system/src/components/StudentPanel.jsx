@@ -1,117 +1,166 @@
-import { useState, useEffect } from 'react';
-import { getEnrolledCourses, generateEvaluationCodes } from '../services/web3';
-import { ClipboardDocumentIcon } from '@heroicons/react/24/outline';
+import { useState, useEffect, useContext } from 'react';
+import { getEnrolledCourses } from '../services/web3';
+import { useNavigate } from 'react-router-dom';
+import { AuthContext } from '../context/AuthContext';
 
-function Notification({ message, type, onClose }) {
-  if (!message) return null;
-  return (
-    <div className={`fixed top-4 left-1/2 transform -translate-x-1/2 z-50 px-4 py-2 rounded shadow-lg text-white ${type === 'error' ? 'bg-red-600' : 'bg-green-600'}`}
-      onClick={onClose}
-    >
-      {message}
-    </div>
-  );
+// Helper to generate a random 4-digit code
+function randomCode() {
+  return Math.floor(1000 + Math.random() * 9000);
 }
+
+// Helper to generate random completed counts for demo
+function randomDone(total) {
+  return Math.floor(Math.random() * (total + 1));
+}
+
+// Mock grades data for demonstration
+const mockGrades = [
+  { id: 1, stdId: '22pwbcs234', hashed: 'PM2342', course: 'C0234', type: 'MID-TERM', marks: 19, email: 'john@example.com' },
+  { id: 2, stdId: '22pwbcs234', hashed: 'Q13454', course: 'CL2394', type: 'QUIZ 01', marks: 2, email: 'john@example.com' },
+  { id: 3, stdId: '21pwb2342', hashed: 'A23453', course: 'CL9823', type: 'ASSIGN. 02', marks: 2, email: 'other@example.com' },
+  { id: 4, stdId: '20pwb2390', hashed: 'PF2093', course: 'C2389', type: 'FINAL-TERM', marks: 45, email: 'john@example.com' },
+];
 
 export default function StudentPanel() {
   const [courses, setCourses] = useState([]);
-  const [codes, setCodes] = useState({});
-  const [loading, setLoading] = useState({});
-  const [notification, setNotification] = useState({ message: '', type: 'success' });
-  const [loadingCourses, setLoadingCourses] = useState(false);
+  const [expanded, setExpanded] = useState({});
+  const [progress, setProgress] = useState({});
+  const [courseCodes, setCourseCodes] = useState({});
+  const navigate = useNavigate();
+  const { user } = useContext(AuthContext);
+
+  // Role-based access: only allow 'student' role
+  useEffect(() => {
+    const role = localStorage.getItem('role');
+    if (role !== 'student') {
+      navigate('/');
+    }
+  }, [navigate]);
 
   useEffect(() => {
     loadCourses();
   }, []);
 
   const loadCourses = async () => {
-    setLoadingCourses(true);
-    try {
-      const courseList = await getEnrolledCourses(/* student ID */);
-      setCourses(courseList);
-    } catch (err) {
-      setNotification({ message: 'Failed to load courses.', type: 'error' });
-    }
-    setLoadingCourses(false);
+    const courseList = await getEnrolledCourses(/* student ID */);
+    setCourses(courseList);
+    // Generate random progress for each course
+    const prog = {};
+    courseList.forEach(course => {
+      prog[course.id] = {
+        quizzes: randomDone(3),
+        assignments: randomDone(3),
+        exams: randomDone(2),
+      };
+    });
+    setProgress(prog);
   };
 
-  const handleGenerateCodes = async (courseId) => {
-    setLoading(prev => ({ ...prev, [courseId]: true }));
-    try {
-      const generatedCodes = await generateEvaluationCodes(courseId);
-      setCodes(prev => ({ ...prev, [courseId]: generatedCodes }));
-      setNotification({ message: 'Codes generated!', type: 'success' });
-    } catch (err) {
-      setNotification({ message: 'Failed to generate codes.', type: 'error' });
-    }
-    setLoading(prev => ({ ...prev, [courseId]: false }));
+  const handleShowDetails = (courseId) => {
+    setExpanded(prev => ({ ...prev, [courseId]: !prev[courseId] }));
+    // Generate codes if not already generated
+    setCourseCodes(prev => {
+      if (prev[courseId]) return prev;
+      return {
+        ...prev,
+        [courseId]: {
+          quizzes: [
+            `Q1-${randomCode()}`,
+            `Q2-${randomCode()}`,
+            `Q3-${randomCode()}`,
+          ],
+          assignments: [
+            `A1-${randomCode()}`,
+            `A2-${randomCode()}`,
+            `A3-${randomCode()}`,
+          ],
+          exams: [
+            { label: 'Mid Term', code: 'PM' },
+            { label: 'Final Term', code: 'PF' },
+          ],
+        },
+      };
+    });
   };
 
-  const copyToClipboard = (text) => {
-    navigator.clipboard.writeText(text);
-    setNotification({ message: 'Code copied to clipboard!', type: 'success' });
-  };
+  // Filter grades for the logged-in student
+  const studentGrades = user ? mockGrades.filter(g => g.email === user.email) : [];
 
   return (
-    <div className="bg-white rounded-lg shadow p-6 relative">
-      <Notification message={notification.message} type={notification.type} onClose={() => setNotification({ message: '', type: 'success' })} />
+    <div className="bg-white rounded-lg shadow p-6">
       <h2 className="text-2xl font-bold text-gray-800 mb-6">My Courses</h2>
-      {loadingCourses && <div className="absolute inset-0 bg-white bg-opacity-60 flex items-center justify-center z-10"><div className="loader ease-linear rounded-full border-4 border-t-4 border-gray-200 h-12 w-12 mb-4 animate-spin"></div></div>}
       <div className="space-y-6">
         {courses.map((course) => (
           <div key={course.id} className="border rounded-lg p-4">
-            <div className="flex justify-between items-start mb-4">
+            <div className="flex justify-between items-center mb-2">
               <div>
                 <h3 className="text-lg font-semibold">{course.title}</h3>
                 <p className="text-gray-600">{course.code} • {course.credits} credits</p>
               </div>
               <button
-                onClick={() => handleGenerateCodes(course.id)}
-                disabled={loading[course.id]}
-                className={`px-4 py-2 rounded-md text-white ${loading[course.id] ? 'bg-gray-400' : 'bg-blue-600 hover:bg-blue-700'}`}
+                onClick={() => handleShowDetails(course.id)}
+                className="px-4 py-2 rounded-md text-white bg-blue-600 hover:bg-blue-700"
               >
-                {loading[course.id] ? 'Generating...' : 'Generate Codes'}
+                {expanded[course.id] ? 'Hide Details' : 'Show Details'}
               </button>
             </div>
-
-            {codes[course.id] && (
-              <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Code</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Action</th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {codes[course.id].map((code) => (
-                      <tr key={code.code}>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{code.type}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 font-mono">{code.code}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
-                            ${code.isMarked ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
-                            {code.isMarked ? 'Marked' : 'Pending'}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          <button
-                            onClick={() => copyToClipboard(code.code)}
-                            className="text-blue-600 hover:text-blue-900"
-                          >
-                            <ClipboardDocumentIcon className="h-5 w-5" />
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+            {expanded[course.id] && courseCodes[course.id] && (
+              <div className="mt-4 border-t pt-4">
+                <div className="mb-4 flex flex-wrap gap-6">
+                  <span className="text-sm text-gray-700 font-semibold">Quizzes: {progress[course.id]?.quizzes ?? 0}/3 done</span>
+                  <span className="text-sm text-gray-700 font-semibold">Assignments: {progress[course.id]?.assignments ?? 0}/3 done</span>
+                  <span className="text-sm text-gray-700 font-semibold">Exams: {progress[course.id]?.exams ?? 0}/2 done</span>
+                </div>
+                <h4 className="font-semibold mb-2">Quizzes</h4>
+                <ul className="mb-2">
+                  {courseCodes[course.id].quizzes.map((q, idx) => (
+                    <li key={q} className="text-gray-700">Quiz {idx + 1}: <span className="font-mono font-bold">{q}</span></li>
+                  ))}
+                </ul>
+                <h4 className="font-semibold mb-2">Assignments</h4>
+                <ul className="mb-2">
+                  {courseCodes[course.id].assignments.map((a, idx) => (
+                    <li key={a} className="text-gray-700">Assignment {idx + 1}: <span className="font-mono font-bold">{a}</span></li>
+                  ))}
+                </ul>
+                <h4 className="font-semibold mb-2">Exams</h4>
+                <ul>
+                  {courseCodes[course.id].exams.map((e) => (
+                    <li key={e.code} className="text-gray-700">{e.label}: <span className="font-mono font-bold">{e.code}</span></li>
+                  ))}
+                </ul>
               </div>
             )}
           </div>
         ))}
+      </div>
+      {/* Grades Table for Student */}
+      <h2 className="text-2xl font-bold text-gray-800 mb-4 mt-8">My Grades</h2>
+      <div className="overflow-x-auto">
+        <table className="min-w-full divide-y divide-gray-200 border">
+          <thead className="bg-gray-50">
+            <tr>
+              <th className="px-4 py-2 text-left text-xs font-bold text-gray-700 uppercase border">Sr. No</th>
+              <th className="px-4 py-2 text-left text-xs font-bold text-gray-700 uppercase border">Std id</th>
+              <th className="px-4 py-2 text-left text-xs font-bold text-gray-700 uppercase border">Hashed</th>
+              <th className="px-4 py-2 text-left text-xs font-bold text-gray-700 uppercase border">Course</th>
+              <th className="px-4 py-2 text-left text-xs font-bold text-gray-700 uppercase border">Type</th>
+              <th className="px-4 py-2 text-left text-xs font-bold text-gray-700 uppercase border">Marks</th>
+            </tr>
+          </thead>
+          <tbody className="bg-white divide-y divide-gray-200">
+            {studentGrades.map((grade, idx) => (
+              <tr key={grade.id}>
+                <td className="px-4 py-2 border font-bold text-blue-700">{idx + 1}</td>
+                <td className="px-4 py-2 border font-bold text-blue-700">{grade.stdId}</td>
+                <td className="px-4 py-2 border font-bold text-blue-700">{grade.hashed}</td>
+                <td className="px-4 py-2 border font-bold text-blue-700">{grade.course}</td>
+                <td className="px-4 py-2 border font-bold text-blue-700">{grade.type}</td>
+                <td className="px-4 py-2 border font-bold text-blue-700">{grade.marks}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
     </div>
   );
